@@ -1,0 +1,195 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8;"/>
+    <title>WIFI认证</title>
+</head>
+<body>
+
+<div class="hidden md:block">
+    <div class="ml-10 flex items-baseline space-x-2">
+        <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" -->
+        <a href="{{ url_for('home.home') }}"
+           class="btn m-1 glass text-lg">hello world</a>
+    </div>
+</div>
+
+<form id="form1" name="form1" method="get" action="http://192.168.1.1:8080/portal/auth" onsubmit="return doSubmit();">
+    <p>
+        <label id="t_user_name" class="">用户名：</label>
+        <span id="span_usr_name">
+		<input id="username" name="username" type="text" fieldtype="username" tabindex="1"/>
+	</span>
+    </p>
+
+    <p>
+        <label id="t_password" class="">密&nbsp;&nbsp;&nbsp;码：</label>
+        <input id="password" name="password" type="password" value="" fieldtype="password" tabindex="2"/>
+    </p>
+    <input type="button" id="auth-submit" name="auth-submit" value="登录"/>
+    <span id="login-tips"></span>
+    <input type="hidden" name="interface_mode" id="interface_mode" value=""/>
+    <input type="hidden" name="interface" id="interface" value=""/>
+    <input type="hidden" name="btn_logon" id="btn_logon" value=""/>
+    <input type="hidden" name="staIp" id="staIp" value=""/>
+    <input type="hidden" name="staMac" id="staMac" value=""/>
+    <input type="hidden" name="url" id="url" value=""/>
+    <input type="hidden" name="authtype" id="authtype" value="5"/>
+    <input type="hidden" name="pagetype" id="pagetype" value="web"/>
+</form>
+
+
+<script type="text/javascript" src="{{ url_for('static', filename='jquery.min.js') }}"></script>
+<script type="text/javascript">
+
+    $(document).ready(function () {
+        $("#auth-submit").click(function () {
+
+            var $tips = $("#login-tips");
+            $tips.html("正在登录，请稍候···");
+
+            function parse_config(data) {
+                var logonErrInfo = new Array("",
+                    "正在登录，请稍候···",
+                    "用户名或者密码错误！",
+                    "登录超时，请重新登录！",
+                    "该用户名已被禁用！",
+                    "用户已过期！",
+                    "该时间段禁止认证，请稍候重试！",
+                    "该用户名已达认证用户上限！",
+                    "请求服务器失败，请稍后再试",
+                    "登录成功",
+                    "退出登录成功，请重新登录",
+                    "您没有权限使用该用户名进行认证！",
+                    "认证方式错误",
+                    "正在连接外部认证服务器");
+                var INFO_TIP_INIT = 0;
+                var INFO_TIP_REFRESH = 1;
+                var INFO_TIP_ERRCODE = 2;
+                var INFO_TIP_TIMEOUT = 3;
+                var INFO_TIP_BLACKUSER = 4;
+                var INFO_TIP_USEREXPIRE = 5;
+                var INFO_TIP_INVALIDTIME = 6;
+                var INFO_TIP_USERFULL = 7;
+                var INFO_TIP_SERVERERR = 8;
+                var INFO_TIP_SUCCESS = 9;
+                var INFO_TIP_LOGOUT = 10;
+                var INFO_TIP_MAC_CONFLICT = 11;
+                var INFO_TIP_AUTHMODE_ERROR = 12;
+                var INFO_TIP_REMOTE_GOURL = 13;
+
+                var startIndex = data.indexOf("{");
+                var endIndex = data.indexOf("}");
+                var cfg = data.substring(startIndex, endIndex + 1);
+                var cfgPara = $.parseJSON(cfg);
+
+
+                if (cfgPara.logonTip == INFO_TIP_ERRCODE) {
+                    if (cfgPara.failUrl && cfgPara.failUrl != "") {
+                        window.location.href = cfgPara.failUrl
+                    } else {
+                        $tips.html(logonErrInfo[INFO_TIP_ERRCODE])
+                    }
+                } else if (cfgPara.logonTip == INFO_TIP_SUCCESS) {
+                    if (cfgPara.successUrl && cfgPara.successUrl != "") {
+                        window.location.href = cfgPara.successUrl
+                    } else {
+                        var locationStr = window.location.search;
+                        var urlPara = locationStr.substr(locationStr.indexOf('?') + 1);
+                        var goUrl = "http://192.168.1.1:8080/portal/auth" + "?" + urlPara;
+                        window.location.href = goUrl;
+                    }
+                } else if (cfgPara.logonTip != INFO_TIP_REFRESH) {
+                    $tips.html(logonErrInfo[cfgPara.logonTip])
+                } else {
+                    setTimeout(function () {
+                        var locationStr = window.location.search;
+                        var urlPara = locationStr.substr(locationStr.indexOf('?') + 1);
+                        if (-1 == urlPara.indexOf("refresh=true")) {
+                            urlPara = urlPara + "&refresh=true";
+                        }
+
+                        $.get("http://192.168.1.1:8080/portal/auth" + "?" + urlPara, function (data) {
+                            parse_config(data);
+                        });
+                    }, 1000);
+                }
+            }
+
+            $.get("http://192.168.1.1:8080/portal/auth" + buildAuthParam(), function (data) {
+                parse_config(data);
+                return;
+            });
+        });
+    });
+
+    function buildAuthParam() {
+        var url = "";
+        var idx = 0;
+        var locSearch = window.location.search;
+        var argsStr = locSearch.slice(1, locSearch.length);
+        var argv = argsStr.split('&');
+        var nameVal;
+
+        for (idx = 0; idx < argv.length; idx++) {
+            nameVal = argv[idx].split('=');
+            if (nameVal.length == 2) {
+                if (nameVal[0] == "username" || nameVal[0] == "password")
+                    continue
+
+                if ("" == url) {
+                    url += "?" + nameVal[0] + "=" + encodeURIComponent(nameVal[1]);
+                } else {
+                    url += "&" + nameVal[0] + "=" + encodeURIComponent(nameVal[1]);
+                }
+            }
+        }
+
+        url += "&username=" + encodeURIComponent($("#username").val());
+        url += "&password=" + encodeURIComponent($("#password").val());
+        url += "&authtype=5";
+        url += "&interface_mode=true"
+
+        return url;
+    }
+
+    function setExtArgs(type) {
+        var idx = 0;
+        var locSearch = window.location.search;
+        var argsStr = locSearch.slice(1, locSearch.length);
+        var argv = argsStr.split('&');
+        var nameVal;
+
+        for (idx = 0; idx < argv.length; idx++) {
+            nameVal = argv[idx].split('=');
+            if (nameVal.length == 2 && null != document.getElementById(nameVal[0])) {
+                if (nameVal[0] == "username" || nameVal[0] == "password")
+                    continue;
+
+                if (0 == type) {
+                    document.getElementById(nameVal[0]).value = nameVal[1];
+                } else {
+                    document.getElementById(nameVal[0] + "_exit").value = nameVal[1];
+                }
+            }
+        }
+        return;
+    }
+
+
+    function doSubmit() {
+        setExtArgs(0);
+        //document.forms['form1'].submit();
+    }
+
+    // function doExitSubmit()
+    // {
+    // 	setExtArgs(1);
+    // 	document.forms['form2'].submit();
+    // }
+
+
+</script>
+</body>
+</html>
