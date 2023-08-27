@@ -13,6 +13,7 @@
         <a href="{{ url_for('home.home') }}"
            class="btn m-1 glass text-lg">hello world</a>
     </div>
+    <p>URL: {{ url_for('static', filename='jquery.min.js') }}</p>
 </div>
 
 <form id="form1" name="form1" method="get" action="http://192.168.1.1:8080/portal/auth" onsubmit="return doSubmit();">
@@ -41,6 +42,7 @@
 
 
 <script type="text/javascript" src="{{ url_for('static', filename='jquery.min.js') }}"></script>
+
 <script type="text/javascript">
 
     $(document).ready(function () {
